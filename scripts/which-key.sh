@@ -5,6 +5,7 @@
 set -uo pipefail
 
 PLUGIN_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+source "$PLUGIN_DIR/scripts/config-path.sh"
 CONFIG_FILE=""
 PANE_ID=""
 
@@ -46,6 +47,14 @@ C_R=$'\033[0m'
 if [[ -z "$PANE_ID" ]]; then
     echo "Usage: which-key.sh [--config <path>] <pane_id>"
     exit 1
+fi
+
+if [[ -n "$CONFIG_FILE" ]]; then
+    pane_path="$(tmux display-message -t "$PANE_ID" -p '#{pane_current_path}')"
+    if ! CONFIG_FILE="$(resolve_config_path "$CONFIG_FILE" "$pane_path")"; then
+        echo "Config path has undefined environment variable(s): $CONFIG_FILE"
+        exit 1
+    fi
 fi
 
 if [[ ! -f "$CONFIG_FILE" ]]; then

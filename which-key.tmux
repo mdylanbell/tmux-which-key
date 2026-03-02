@@ -41,18 +41,21 @@ main() {
     local popup_y
     popup_y=$(get_tmux_option "@which-key-popup-y" "S")
 
-    # Build config flag
-    local config_flag=""
+    # Build shell-safe script command
+    local script_cmd
+    script_cmd="$(printf "%q " "$CURRENT_DIR/scripts/which-key.sh")"
     if [[ -n "$config" ]]; then
-        config_flag="--config $config"
+        script_cmd+="$(printf "%q " "--config")"
+        script_cmd+="$(printf "%q " "$config")"
     fi
+    script_cmd+="#{pane_id}"
 
     # Build popup command
     local popup_cmd="tmux display-popup -E"
     popup_cmd+=" -h $popup_height -w $popup_width"
     popup_cmd+=" -x $popup_x -y $popup_y"
     popup_cmd+=" -S 'fg=$popup_fg' -s 'bg=$popup_bg'"
-    popup_cmd+=" '$CURRENT_DIR/scripts/which-key.sh $config_flag #{pane_id}'"
+    popup_cmd+=" '$script_cmd'"
 
     tmux bind-key "$trigger" run-shell "$popup_cmd"
 }

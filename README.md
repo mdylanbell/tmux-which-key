@@ -82,6 +82,13 @@ Set these in your `~/.tmux.conf` before loading the plugin:
 | `@which-key-popup-x` | `C` | Popup X position (`C` = centered) |
 | `@which-key-popup-y` | `S` | Popup Y position (`S` = status line) |
 
+`@which-key-config` is resolved explicitly by the plugin (tmux does not expand it for you):
+
+- Absolute paths (`/path/to/config.json`) are used as-is
+- `~` and `~/...` expand to the current user's home directory
+- `$VAR` and `${VAR}` are expanded from the popup shell environment
+- Relative paths are resolved from the active pane's current working directory
+
 Example:
 
 ```tmux
@@ -119,6 +126,12 @@ The plugin looks for a config file in this order:
 2. `$XDG_CONFIG_HOME/tmux-which-key/config.json` (usually `~/.config/tmux-which-key/config.json`)
 3. `~/.tmux-which-key.json`
 4. Plugin's built-in `configs/default.json`
+
+Path caveats for `@which-key-config`:
+
+- Undefined env vars in `$VAR`/`${VAR}` cause a hard error instead of silent fallback
+- `~user/...` is not supported (only current-user `~`/`~/...`)
+- Quotes are not required around paths with spaces in the option value; the plugin passes them safely
 
 To create your own config:
 
