@@ -8,6 +8,9 @@ PLUGIN_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 CONFIG_FILE=""
 PANE_ID=""
 
+# shellcheck source=lib/read-key.sh
+source "$PLUGIN_DIR/scripts/lib/read-key.sh"
+
 # Parse arguments
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -192,18 +195,20 @@ handle_key() {
 while true; do
     render_menu
 
-    IFS= read -rsn1 keypress
+    keypress="$(read_keypress)" || exit 0
 
-    # Escape
+    # Plain Escape
     if [[ "$keypress" == $'\x1b' ]]; then
-        read -rsn1 -t 0.1 seq1 || true
-        if [[ -z "$seq1" ]]; then
-            if [[ ${#NAV_STACK[@]} -gt 0 ]]; then
-                unset 'NAV_STACK[${#NAV_STACK[@]}-1]'
-            else
-                exit 0
-            fi
+        if [[ ${#NAV_STACK[@]} -gt 0 ]]; then
+            unset 'NAV_STACK[${#NAV_STACK[@]}-1]'
+        else
+            exit 0
         fi
+        continue
+    fi
+
+    # Ignore multi-byte escape sequences (arrows, function keys, etc.).
+    if [[ "$keypress" == $'\x1b'* ]]; then
         continue
     fi
 
