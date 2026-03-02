@@ -80,6 +80,21 @@ get_breadcrumb() {
     echo "${parts[*]}"
 }
 
+shell_escape() {
+    printf "%q" "$1"
+}
+
+build_popup_run_shell_command() {
+    local pane_path="$1"
+    local command="$2"
+    local escaped_path escaped_command
+
+    escaped_path=$(shell_escape "$pane_path")
+    escaped_command=$(shell_escape "$command")
+
+    printf "sleep 0.1 && tmux display-popup -E -h 80%% -w 80%% -d %s %s" "$escaped_path" "$escaped_command"
+}
+
 render_menu() {
     clear
 
@@ -163,8 +178,10 @@ handle_key() {
                     ;;
                 popup)
                     local pane_path
+                    local popup_command
                     pane_path=$(tmux display-message -t "$PANE_ID" -p '#{pane_current_path}')
-                    tmux run-shell -b "sleep 0.1 && tmux display-popup -E -h 80% -w 80% -d '$pane_path' '$command'"
+                    popup_command=$(build_popup_run_shell_command "$pane_path" "$command")
+                    tmux run-shell -b "$popup_command"
                     exit 0
                     ;;
                 tmux)
