@@ -58,12 +58,19 @@ CONFIG=$(cat "$CONFIG_FILE")
 
 # Navigation stack (jq path indices)
 NAV_STACK=()
+NAV_DEPTH=0
+ESC_SEQ_TIMEOUT=0.1
+if ((BASH_VERSINFO[0] < 4)); then
+    ESC_SEQ_TIMEOUT=1
+fi
 
 # Get current items as tab-separated lines: key\ttype\tdescription\tcommand\timmediate
 # Single jq call per menu level instead of per-item
 get_current_items() {
     local path=".items"
-    for idx in "${NAV_STACK[@]}"; do
+    local i idx
+    for ((i = 0; i < NAV_DEPTH; i++)); do
+        idx="${NAV_STACK[$i]}"
         path="${path}[${idx}].items"
     done
     echo "$CONFIG" | jq -r "${path}[] | [.key, .type, .description, (.command // \"\"), (if .immediate then \"true\" else \"false\" end)] | @tsv" 2>/dev/null
@@ -72,7 +79,9 @@ get_current_items() {
 get_breadcrumb() {
     local path=".items"
     local parts=("root")
-    for idx in "${NAV_STACK[@]}"; do
+    local i idx
+    for ((i = 0; i < NAV_DEPTH; i++)); do
+        idx="${NAV_STACK[$i]}"
         parts+=("$(echo "$CONFIG" | jq -r "${path}[${idx}].description")")
         path="${path}[${idx}].items"
     done
@@ -136,7 +145,7 @@ render_menu() {
     printf "\n%s" "$C_SEP"
     printf '%.0s─' {1..98}
     printf "%s\n" "$C_R"
-    if [[ ${#NAV_STACK[@]} -gt 0 ]]; then
+    if (( NAV_DEPTH > 0 )); then
         printf "  %sesc  close    ⌫  back%s\n" "$C_SEP" "$C_R"
     else
         printf "  %sesc  close%s\n" "$C_SEP" "$C_R"
@@ -151,7 +160,8 @@ handle_key() {
         if [[ "$key" == "$keypress" ]]; then
             case "$type" in
                 group)
-                    NAV_STACK+=("$i")
+                    NAV_STACK[$NAV_DEPTH]="$i"
+                    ((NAV_DEPTH++))
                     return 0
                     ;;
                 action)
@@ -196,10 +206,12 @@ while true; do
 
     # Escape
     if [[ "$keypress" == $'\x1b' ]]; then
-        read -rsn1 -t 0.1 seq1 || true
+        seq1=""
+        read -rsn1 -t "$ESC_SEQ_TIMEOUT" seq1 || true
         if [[ -z "$seq1" ]]; then
-            if [[ ${#NAV_STACK[@]} -gt 0 ]]; then
-                unset 'NAV_STACK[${#NAV_STACK[@]}-1]'
+            if (( NAV_DEPTH > 0 )); then
+                ((NAV_DEPTH--))
+                unset "NAV_STACK[$NAV_DEPTH]"
             else
                 exit 0
             fi
@@ -209,8 +221,9 @@ while true; do
 
     # Backspace
     if [[ "$keypress" == $'\x7f' || "$keypress" == $'\x08' ]]; then
-        if [[ ${#NAV_STACK[@]} -gt 0 ]]; then
-            unset 'NAV_STACK[${#NAV_STACK[@]}-1]'
+        if (( NAV_DEPTH > 0 )); then
+            ((NAV_DEPTH--))
+            unset "NAV_STACK[$NAV_DEPTH]"
         else
             exit 0
         fi
