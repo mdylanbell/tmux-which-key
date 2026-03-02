@@ -73,7 +73,7 @@ Set these in your `~/.tmux.conf` before loading the plugin:
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `@which-key-trigger` | `Space` | Key binding (after prefix) to open the menu |
+| `@which-key-trigger` | `Space` | Prefix-table trigger key. Set `None`/`Off`/`Disabled`/`False`/`0` to disable plugin-managed binding |
 | `@which-key-config` | _(auto-detected)_ | Path to a custom JSON config file |
 | `@which-key-popup-height` | `16` | Popup height in lines |
 | `@which-key-popup-width` | `100` | Popup width in characters |
@@ -93,7 +93,25 @@ set -g @plugin 'Nucc/tmux-which-key'
 
 ### Custom Key Binding
 
-By default the plugin binds `prefix + Space`. You can override this with `@which-key-trigger`, or create your own binding entirely in `~/.tmux.conf`.
+Trigger precedence:
+
+1. If `@which-key-trigger` is not set, the plugin binds `prefix + Space`.
+2. If `@which-key-trigger` is set to a key (for example `M-Space`), the plugin binds that key in the prefix table.
+3. If `@which-key-trigger` is set to `None`, `Off`, `Disabled`, `False`, or `0`, the plugin does not manage any trigger key.
+
+The plugin manages one trigger at a time and removes its previous managed binding on reload, so changing `@which-key-trigger` does not leave stale plugin bindings behind.
+
+To verify the active binding in tmux:
+
+```bash
+# Prefix-table trigger managed by the plugin
+tmux list-keys -T prefix | grep which-key.sh
+
+# Any global (no-prefix) manual bindings you added
+tmux list-keys -T root | grep which-key.sh
+```
+
+Use `set -g @which-key-trigger 'None'` when you want only manual bindings.
 
 To bind `Ctrl-Space` directly (no prefix needed):
 

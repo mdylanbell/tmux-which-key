@@ -16,9 +16,23 @@ get_tmux_option() {
     fi
 }
 
+is_trigger_disabled() {
+    local trigger="$1"
+    local normalized
+    normalized=$(printf "%s" "$trigger" | tr '[:upper:]' '[:lower:]')
+    case "$normalized" in
+        none|off|disabled|false|0)
+            return 0
+            ;;
+    esac
+    return 1
+}
+
 main() {
     local trigger
     trigger=$(get_tmux_option "@which-key-trigger" "Space")
+    local previous_trigger
+    previous_trigger=$(tmux show-option -gqv "@which-key-trigger-bound")
 
     local config
     config=$(get_tmux_option "@which-key-config" "")
@@ -54,7 +68,17 @@ main() {
     popup_cmd+=" -S 'fg=$popup_fg' -s 'bg=$popup_bg'"
     popup_cmd+=" '$CURRENT_DIR/scripts/which-key.sh $config_flag #{pane_id}'"
 
+    if [[ -n "$previous_trigger" ]]; then
+        tmux unbind-key -q "$previous_trigger"
+    fi
+
+    if is_trigger_disabled "$trigger"; then
+        tmux set-option -gu "@which-key-trigger-bound"
+        return
+    fi
+
     tmux bind-key "$trigger" run-shell "$popup_cmd"
+    tmux set-option -gq "@which-key-trigger-bound" "$trigger"
 }
 
 main
