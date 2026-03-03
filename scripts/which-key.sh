@@ -5,8 +5,23 @@
 set -uo pipefail
 
 PLUGIN_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+LIB_DIR="$PLUGIN_DIR/scripts/lib"
 CONFIG_FILE=""
 PANE_ID=""
+
+load_lib() {
+    local file="$1"
+    if [[ ! -f "$LIB_DIR/$file" ]]; then
+        echo "tmux-which-key: missing library $LIB_DIR/$file" >&2
+        exit 1
+    fi
+    # shellcheck source=/dev/null
+    source "$LIB_DIR/$file"
+}
+
+load_lib "common.sh"
+load_lib "config_path.sh"
+load_lib "layout.sh"
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -22,60 +37,13 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-expand_env_refs() {
-    local input="$1"
-    local output=""
-    local rest="$input"
-    local var_name
-
-    while [[ -n "$rest" ]]; do
-        if [[ "$rest" =~ ^([^$]*)\$\{([A-Za-z_][A-Za-z0-9_]*)\}(.*)$ ]]; then
-            output+="${BASH_REMATCH[1]}"
-            var_name="${BASH_REMATCH[2]}"
-            rest="${BASH_REMATCH[3]}"
-        elif [[ "$rest" =~ ^([^$]*)\$([A-Za-z_][A-Za-z0-9_]*)(.*)$ ]]; then
-            output+="${BASH_REMATCH[1]}"
-            var_name="${BASH_REMATCH[2]}"
-            rest="${BASH_REMATCH[3]}"
-        else
-            if [[ "$rest" == *'$'* ]]; then
-                echo "Unsupported variable expression in config path: $input"
-                return 1
-            fi
-            output+="$rest"
-            break
-        fi
-
-        if [[ -z ${!var_name+x} ]]; then
-            echo "Undefined environment variable in config path: $var_name"
-            return 1
-        fi
-        output+="${!var_name}"
-    done
-
-    printf '%s\n' "$output"
-}
-
 resolve_config_path() {
     local raw="$1"
-    local expanded
     local pane_path
+    local expanded
 
-    expanded=$(expand_env_refs "$raw") || return 1
-
-    case "$expanded" in
-        "~")
-            expanded="$HOME"
-            ;;
-        "~/"*)
-            expanded="$HOME/${expanded#~/}"
-            ;;
-    esac
-
-    if [[ "$expanded" != /* ]]; then
-        pane_path=$(tmux display-message -t "$PANE_ID" -p '#{pane_current_path}' 2>/dev/null || pwd)
-        expanded="$pane_path/$expanded"
-    fi
+    pane_path=$(tmux display-message -t "$PANE_ID" -p '#{pane_current_path}' 2>/dev/null || pwd)
+    expanded=$(wk_resolve_config_path "$raw" "$pane_path") || return 1
 
     printf '%s\n' "$expanded"
 }
@@ -89,7 +57,7 @@ if [[ -z "$CONFIG_FILE" ]]; then
     elif [[ -f "$local_home" ]]; then
         CONFIG_FILE="$local_home"
     else
-        CONFIG_FILE="$PLUGIN_DIR/configs/default.json"
+            CONFIG_FILE=$(wk_default_config_file "$PLUGIN_DIR")
     fi
 else
     CONFIG_FILE=$(resolve_config_path "$CONFIG_FILE") || exit 1
@@ -369,24 +337,6 @@ run_tmux_command() {
     run_shell_bg "$shell_script"
 }
 
-is_truthy_option() {
-    local value="$1"
-    local default_value="$2"
-    local normalized
-
-    if [[ -z "$value" ]]; then
-        value="$default_value"
-    fi
-
-    normalized=$(printf '%s' "$value" | tr '[:upper:]' '[:lower:]')
-    case "$normalized" in
-        1|on|true|yes)
-            return 0
-            ;;
-    esac
-    return 1
-}
-
 get_tmux_subcommand() {
     local command="$1"
     if [[ "$command" =~ ^[[:space:]]*([[:alnum:]-]+) ]]; then
@@ -495,7 +445,7 @@ render_menu() {
     else
         # Column layout
         local col_width=32
-        local num_cols=3
+        local num_cols=$WK_MENU_NUM_COLS
         local num_rows=$(( (total + num_cols - 1) / num_cols ))
         content_rows=$num_rows
 
@@ -522,7 +472,7 @@ render_menu() {
     fi
 
     if [[ "$popup_height" =~ ^[0-9]+$ ]]; then
-        local used_lines_without_pad=$((content_rows + 5))
+        local used_lines_without_pad=$((content_rows + WK_MENU_CHROME_LINES))
         if ((popup_height > used_lines_without_pad)); then
             pad_lines=$((popup_height - used_lines_without_pad))
         fi
@@ -543,7 +493,7 @@ render_menu() {
         printf "  %sesc  close%s" "$C_SEP" "$C_R"
     fi
 
-    MENU_LAST_ROW=$((content_rows + pad_lines + 5))
+    MENU_LAST_ROW=$((content_rows + pad_lines + WK_MENU_CHROME_LINES))
 }
 
 hide_cursor() {
@@ -602,7 +552,7 @@ handle_key() {
                     local client_name
 
                     auto_target_opt=$(tmux show-option -gqv "@which-key-tmux-auto-target" 2>/dev/null || true)
-                    if is_truthy_option "$auto_target_opt" "on"; then
+                    if wk_is_truthy_option "$auto_target_opt" "on"; then
                         if tmux_subcommand=$(get_tmux_subcommand "$command"); then
                             if is_client_scoped_tmux_command "$tmux_subcommand" && ! command_has_explicit_client_target "$command" "$tmux_subcommand"; then
                                 client_name=$(get_invoking_client_name)
