@@ -469,6 +469,9 @@ render_menu() {
 
     local breadcrumb
     breadcrumb=$(get_breadcrumb)
+    local popup_height="${WHICH_KEY_POPUP_HEIGHT:-}"
+    local pad_lines=0
+    local content_rows=0
 
     # Header
     printf "%s  Which Key%s  %s│%s  %s%s%s\n" "$C_HDR" "$C_R" "$C_SEP" "$C_R" "$C_DESC" "$breadcrumb" "$C_R"
@@ -487,32 +490,45 @@ render_menu() {
     local total=${#keys[@]}
     if [[ $total -eq 0 ]]; then
         printf "  %s(empty)%s\n" "$C_DESC" "$C_R"
-        return
+        content_rows=1
+    else
+        # Column layout
+        local col_width=32
+        local num_cols=3
+        local num_rows=$(( (total + num_cols - 1) / num_cols ))
+        content_rows=$num_rows
+
+        for ((row = 0; row < num_rows; row++)); do
+            printf "  "
+            for ((col = 0; col < num_cols; col++)); do
+                local i=$((col * num_rows + row))
+                if [[ $i -lt $total ]]; then
+                    local k="${keys[$i]}" t="${types[$i]}" d="${descs[$i]}"
+                    local prefix="" dc="$C_DESC"
+                    if [[ "$t" == "group" ]]; then
+                        prefix="+"
+                        dc="$C_GRP"
+                    fi
+                    local visible_len=$(( ${#k} + 4 + ${#prefix} + ${#d} ))
+                    local pad=$((col_width - visible_len))
+                    [[ $pad -lt 1 ]] && pad=1
+                    printf "%s%s%s  %s→%s %s%s%s%s" "$C_KEY" "$k" "$C_R" "$C_SEP" "$C_R" "$dc" "$prefix" "$d" "$C_R"
+                    printf '%*s' "$pad" ""
+                fi
+            done
+            printf "\n"
+        done
     fi
 
-    # Column layout
-    local col_width=32
-    local num_cols=3
-    local num_rows=$(( (total + num_cols - 1) / num_cols ))
+    if [[ "$popup_height" =~ ^[0-9]+$ ]]; then
+        local used_lines_without_pad=$((content_rows + 5))
+        if ((popup_height > used_lines_without_pad)); then
+            pad_lines=$((popup_height - used_lines_without_pad))
+        fi
+    fi
 
-    for ((row = 0; row < num_rows; row++)); do
-        printf "  "
-        for ((col = 0; col < num_cols; col++)); do
-            local i=$((col * num_rows + row))
-            if [[ $i -lt $total ]]; then
-                local k="${keys[$i]}" t="${types[$i]}" d="${descs[$i]}"
-                local prefix="" dc="$C_DESC"
-                if [[ "$t" == "group" ]]; then
-                    prefix="+"
-                    dc="$C_GRP"
-                fi
-                local visible_len=$(( ${#k} + 4 + ${#prefix} + ${#d} ))
-                local pad=$((col_width - visible_len))
-                [[ $pad -lt 1 ]] && pad=1
-                printf "%s%s%s  %s→%s %s%s%s%s" "$C_KEY" "$k" "$C_R" "$C_SEP" "$C_R" "$dc" "$prefix" "$d" "$C_R"
-                printf '%*s' "$pad" ""
-            fi
-        done
+    local pad_i
+    for ((pad_i = 0; pad_i < pad_lines; pad_i++)); do
         printf "\n"
     done
 
