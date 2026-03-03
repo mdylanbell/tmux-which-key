@@ -194,6 +194,32 @@ The config file is a JSON object with a top-level `items` array. Each item has:
 | `script` | Runs a shell script via `tmux run-shell` | `~/scripts/my-script.sh` |
 | `popup` | Opens command in a temporary `display-popup` at the pane's working directory. Closes on exit or Escape. | `lazygit` |
 
+### Quoting and Escaping
+
+Execution context differs by item type:
+
+- `action`: sends literal text to pane via `tmux send-keys -l` (not shell-evaluated in plugin).
+- `tmux`: runs as a tmux command string.
+- `popup`: runs as popup shell command.
+- `script`: runs through `tmux run-shell`.
+
+Examples:
+
+```json
+[
+  { "key": "q", "type": "popup", "command": "tmux list-windows -a -F '#S:#I #{window_name}' | less", "description": "Quoted format + pipe" },
+  { "key": "m", "type": "tmux", "command": "display-message \"hello world\"", "description": "Double quotes" },
+  { "key": "r", "type": "tmux", "command": "source-file ~/.tmux.conf \\; display-message 'reloaded'", "description": "Command separator" },
+  { "key": "p", "type": "tmux", "command": "command-prompt -p 'Name:' 'rename-window \"%%\"'", "description": "Prompt placeholder" }
+]
+```
+
+Troubleshooting:
+
+- If a `popup` item exits immediately, test the command directly in a shell first.
+- If a `tmux` item appears to no-op, check quoting around `\\;` and format strings (`#{...}`).
+- Use `tmux show-messages` to inspect errors returned by tmux commands.
+
 ### Modifier Keys (`C-` / `M-`)
 
 You can use tmux-style modifier tokens in `key` values:

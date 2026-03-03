@@ -347,6 +347,29 @@ keys_match() {
     return 1
 }
 
+shell_quote() {
+    printf '%q' "$1"
+}
+
+run_shell_bg() {
+    tmux run-shell -b "$1"
+}
+
+run_tmux_command() {
+    local command="$1"
+    local defer="${2:-false}"
+    local command_quoted
+    local shell_script
+
+    command_quoted=$(shell_quote "$command")
+    if [[ "$defer" == "true" ]]; then
+        shell_script="sleep 0.1 && tmux $command_quoted"
+    else
+        shell_script="tmux $command_quoted"
+    fi
+    run_shell_bg "$shell_script"
+}
+
 # Get current items as tab-separated lines: key\ttype\tdescription\tcommand\timmediate
 # Single jq call per menu level instead of per-item
 get_current_items() {
@@ -458,24 +481,26 @@ handle_key() {
                     local pane_path_quoted
                     local command_quoted
                     pane_path=$(tmux display-message -t "$PANE_ID" -p '#{pane_current_path}')
-                    pane_path_quoted=$(printf '%q' "$pane_path")
-                    command_quoted=$(printf '%q' "$command")
-                    tmux run-shell -b "sleep 0.1 && tmux display-popup -E -h 80% -w 80% -d $pane_path_quoted $command_quoted"
+                    pane_path_quoted=$(shell_quote "$pane_path")
+                    command_quoted=$(shell_quote "$command")
+                    run_shell_bg "sleep 0.1 && tmux display-popup -E -h 80% -w 80% -d $pane_path_quoted $command_quoted"
                     exit 0
                     ;;
                 tmux)
                     case "$command" in
                         choose-*|command-prompt*|customize-mode*|copy-mode*)
-                            tmux run-shell -b "sleep 0.1 && tmux $command"
+                            run_tmux_command "$command" true
                             ;;
                         *)
-                            tmux $command
+                            run_tmux_command "$command" false
                             ;;
                     esac
                     exit 0
                     ;;
                 script)
-                    tmux run-shell "$command"
+                    local script_command_quoted
+                    script_command_quoted=$(shell_quote "$command")
+                    tmux run-shell "$script_command_quoted"
                     exit 0
                     ;;
             esac
