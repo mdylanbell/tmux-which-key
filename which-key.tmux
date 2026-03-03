@@ -59,6 +59,28 @@ main() {
     local popup_y
     popup_y=$(get_tmux_option "@which-key-popup-y" "S")
 
+    local color_key
+    color_key=$(get_tmux_option "@which-key-color-key" "#EBCB8B")
+
+    local color_group
+    color_group=$(get_tmux_option "@which-key-color-group" "#88C0D0")
+
+    local color_desc
+    color_desc=$(get_tmux_option "@which-key-color-desc" "#D8DEE9")
+
+    local color_separator
+    color_separator=$(get_tmux_option "@which-key-color-separator" "#4C566A")
+
+    local color_header
+    color_header=$(get_tmux_option "@which-key-color-header" "#81A1C1")
+
+    local color_key_q color_group_q color_desc_q color_separator_q color_header_q
+    color_key_q=$(printf '%q' "$color_key")
+    color_group_q=$(printf '%q' "$color_group")
+    color_desc_q=$(printf '%q' "$color_desc")
+    color_separator_q=$(printf '%q' "$color_separator")
+    color_header_q=$(printf '%q' "$color_header")
+
     # Build config flag
     local config_flag=""
     if [[ -n "$config" ]]; then
@@ -70,6 +92,11 @@ main() {
     popup_cmd+=" -h $popup_height -w $popup_width"
     popup_cmd+=" -x $popup_x -y $popup_y"
     popup_cmd+=" -S 'fg=$popup_fg' -s 'bg=$popup_bg'"
+    popup_cmd+=" -e WHICH_KEY_COLOR_KEY=$color_key_q"
+    popup_cmd+=" -e WHICH_KEY_COLOR_GROUP=$color_group_q"
+    popup_cmd+=" -e WHICH_KEY_COLOR_DESC=$color_desc_q"
+    popup_cmd+=" -e WHICH_KEY_COLOR_SEPARATOR=$color_separator_q"
+    popup_cmd+=" -e WHICH_KEY_COLOR_HEADER=$color_header_q"
     popup_cmd+=" '$CURRENT_DIR/scripts/which-key.sh $config_flag #{pane_id}'"
 
     tmux bind-key "$trigger" run-shell "$popup_cmd"
