@@ -3,7 +3,7 @@
 wk_render_separator() {
     local color_sep="$1"
     local color_reset="$2"
-    local width="${3:-98}"
+    local width="${3:-$WK_MENU_SEPARATOR_WIDTH}"
 
     printf "%s" "$color_sep"
     printf '%*s' "$width" '' | tr ' ' '─'

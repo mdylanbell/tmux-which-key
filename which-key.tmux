@@ -34,18 +34,10 @@ get_tmux_option() {
 
 resolve_config_file_for_height() {
     local raw="$1"
-    local expanded
     local pane_path
 
-    if [[ -z "$raw" ]]; then
-        expanded=$(wk_default_config_file "$CURRENT_DIR")
-    else
-        pane_path=$(tmux display-message -p '#{pane_current_path}' 2>/dev/null || pwd)
-        expanded=$(wk_resolve_config_path "$raw" "$pane_path") || return 1
-    fi
-
-    [[ -f "$expanded" ]] || return 1
-    printf '%s\n' "$expanded"
+    pane_path=$(tmux display-message -p '#{pane_current_path}' 2>/dev/null || pwd)
+    wk_resolve_existing_config_file_with_base "$raw" "$CURRENT_DIR" "$pane_path"
 }
 
 main() {
@@ -126,6 +118,8 @@ main() {
             client_height=$(tmux display-message -p '#{client_height}' 2>/dev/null || true)
             effective_popup_height=$(wk_compute_effective_popup_height "$popup_height" "$resolved_config" "$client_height")
             popup_height_env=$(wk_popup_content_height "$effective_popup_height" 2>/dev/null || true)
+        elif [[ -n "$config" ]]; then
+            tmux display-message "tmux-which-key: failed to resolve @which-key-config for auto-height; using baseline popup height" 2>/dev/null || true
         fi
     elif [[ "$popup_height" =~ ^[0-9]+$ ]]; then
         popup_height_env=$(wk_popup_content_height "$popup_height" 2>/dev/null || true)
