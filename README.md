@@ -75,7 +75,8 @@ Set these in your `~/.tmux.conf` before loading the plugin:
 |--------|---------|-------------|
 | `@which-key-trigger` | `Space` | Key binding (after prefix) to open the menu. Disable with `None`, `Off`, `Disabled`, `False`, or `0` |
 | `@which-key-config` | _(auto-detected)_ | Path to a custom JSON config file |
-| `@which-key-popup-height` | `16` | Popup height in lines |
+| `@which-key-popup-height` | `16` | Popup height in lines (minimum when auto-height is enabled) |
+| `@which-key-popup-auto-height` | `off` | Auto-grow popup height to fit the largest menu level (`on`/`off`) |
 | `@which-key-popup-width` | `100` | Popup width in characters |
 | `@which-key-popup-bg` | `#2E3440` | Popup background color |
 | `@which-key-popup-fg` | `#4C566A` | Popup border/foreground color |
@@ -93,9 +94,19 @@ Example:
 ```tmux
 set -g @which-key-config '~/.config/tmux-which-key/config.json'
 set -g @which-key-popup-height '20'
+set -g @which-key-popup-auto-height 'on'
 set -g @which-key-popup-width '120'
 set -g @plugin 'Nucc/tmux-which-key'
 ```
+
+### Popup Sizing
+
+`@which-key-popup-height` is always the baseline height.
+
+- With `@which-key-popup-auto-height` set to `off` (default), popup height stays fixed at `@which-key-popup-height`.
+- With `@which-key-popup-auto-height` set to `on`, popup height is treated as a minimum and grows when needed to fit menu rows.
+
+Auto-height is computed from the configured menu structure and clamped to client size to avoid overflow.
 
 ### Theme Customization
 

@@ -16,6 +16,139 @@ get_tmux_option() {
     fi
 }
 
+is_truthy_option() {
+    local value="$1"
+    local default_value="$2"
+    local normalized
+
+    if [[ -z "$value" ]]; then
+        value="$default_value"
+    fi
+
+    normalized=$(printf '%s' "$value" | tr '[:upper:]' '[:lower:]')
+    case "$normalized" in
+        1|on|true|yes)
+            return 0
+            ;;
+    esac
+    return 1
+}
+
+expand_env_refs() {
+    local input="$1"
+    local output=""
+    local rest="$input"
+    local var_name
+
+    while [[ -n "$rest" ]]; do
+        if [[ "$rest" =~ ^([^$]*)\$\{([A-Za-z_][A-Za-z0-9_]*)\}(.*)$ ]]; then
+            output+="${BASH_REMATCH[1]}"
+            var_name="${BASH_REMATCH[2]}"
+            rest="${BASH_REMATCH[3]}"
+        elif [[ "$rest" =~ ^([^$]*)\$([A-Za-z_][A-Za-z0-9_]*)(.*)$ ]]; then
+            output+="${BASH_REMATCH[1]}"
+            var_name="${BASH_REMATCH[2]}"
+            rest="${BASH_REMATCH[3]}"
+        else
+            if [[ "$rest" == *'$'* ]]; then
+                return 1
+            fi
+            output+="$rest"
+            break
+        fi
+
+        if [[ -z ${!var_name+x} ]]; then
+            return 1
+        fi
+        output+="${!var_name}"
+    done
+
+    printf '%s\n' "$output"
+}
+
+resolve_config_file_for_height() {
+    local raw="$1"
+    local candidate=""
+    local expanded
+    local pane_path
+
+    if [[ -z "$raw" ]]; then
+        candidate="${XDG_CONFIG_HOME:-$HOME/.config}/tmux-which-key/config.json"
+        if [[ -f "$candidate" ]]; then
+            printf '%s\n' "$candidate"
+            return 0
+        fi
+
+        candidate="$HOME/.tmux-which-key.json"
+        if [[ -f "$candidate" ]]; then
+            printf '%s\n' "$candidate"
+            return 0
+        fi
+
+        candidate="$CURRENT_DIR/configs/default.json"
+        if [[ -f "$candidate" ]]; then
+            printf '%s\n' "$candidate"
+            return 0
+        fi
+        return 1
+    fi
+
+    expanded=$(expand_env_refs "$raw") || return 1
+    case "$expanded" in
+        "~")
+            expanded="$HOME"
+            ;;
+        "~/"*)
+            expanded="$HOME/${expanded#~/}"
+            ;;
+    esac
+
+    if [[ "$expanded" != /* ]]; then
+        pane_path=$(tmux display-message -p '#{pane_current_path}' 2>/dev/null || pwd)
+        expanded="$pane_path/$expanded"
+    fi
+
+    [[ -f "$expanded" ]] || return 1
+    printf '%s\n' "$expanded"
+}
+
+max_items_per_menu() {
+    local config_file="$1"
+    jq -r '[.. | objects | select(has("items") and (.items | type == "array")) | .items | length] | max // 0' "$config_file" 2>/dev/null
+}
+
+compute_effective_popup_height() {
+    local min_height="$1"
+    local config_file="$2"
+    local max_items max_rows required_height effective client_height cap
+
+    [[ "$min_height" =~ ^[0-9]+$ ]] || min_height=16
+
+    max_items=$(max_items_per_menu "$config_file")
+    [[ "$max_items" =~ ^[0-9]+$ ]] || max_items=0
+    max_rows=$(( (max_items + 2) / 3 ))
+
+    # Header + top separator + blank spacer + bottom separator + footer hint
+    required_height=$((max_rows + 5))
+    effective=$min_height
+    if ((required_height > effective)); then
+        effective=$required_height
+    fi
+
+    client_height=$(tmux display-message -p '#{client_height}' 2>/dev/null || true)
+    if [[ "$client_height" =~ ^[0-9]+$ ]] && ((client_height > 2)); then
+        cap=$((client_height - 2))
+        if ((effective > cap)); then
+            effective=$cap
+        fi
+    fi
+
+    if ((effective < 6)); then
+        effective=6
+    fi
+    printf '%s\n' "$effective"
+}
+
 main() {
     local trigger
     trigger=$(tmux show-option -gqv "@which-key-trigger")
@@ -43,6 +176,9 @@ main() {
 
     local popup_height
     popup_height=$(get_tmux_option "@which-key-popup-height" "16")
+
+    local popup_auto_height
+    popup_auto_height=$(get_tmux_option "@which-key-popup-auto-height" "off")
 
     local popup_width
     popup_width=$(get_tmux_option "@which-key-popup-width" "100")
@@ -81,6 +217,19 @@ main() {
     color_separator_q=$(printf '%q' "$color_separator")
     color_header_q=$(printf '%q' "$color_header")
 
+    local effective_popup_height="$popup_height"
+    local popup_height_env=""
+    if is_truthy_option "$popup_auto_height" "off"; then
+        local resolved_config
+        resolved_config=$(resolve_config_file_for_height "$config" 2>/dev/null || true)
+        if [[ -n "$resolved_config" ]]; then
+            effective_popup_height=$(compute_effective_popup_height "$popup_height" "$resolved_config")
+            popup_height_env="$effective_popup_height"
+        fi
+    elif [[ "$popup_height" =~ ^[0-9]+$ ]]; then
+        popup_height_env="$popup_height"
+    fi
+
     # Build script invocation with shell-safe quoting
     local script_invocation
     local config_q=""
@@ -98,7 +247,7 @@ main() {
 
     # Build popup command
     local popup_cmd="tmux display-popup -E"
-    popup_cmd+=" -h $popup_height -w $popup_width"
+    popup_cmd+=" -h $effective_popup_height -w $popup_width"
     popup_cmd+=" -x $popup_x -y $popup_y"
     popup_cmd+=" -S 'fg=$popup_fg' -s 'bg=$popup_bg'"
     popup_cmd+=" -e WHICH_KEY_COLOR_KEY=$color_key_q"
@@ -106,6 +255,11 @@ main() {
     popup_cmd+=" -e WHICH_KEY_COLOR_DESC=$color_desc_q"
     popup_cmd+=" -e WHICH_KEY_COLOR_SEPARATOR=$color_separator_q"
     popup_cmd+=" -e WHICH_KEY_COLOR_HEADER=$color_header_q"
+    if [[ -n "$popup_height_env" ]]; then
+        local popup_height_env_q
+        popup_height_env_q=$(printf '%q' "$popup_height_env")
+        popup_cmd+=" -e WHICH_KEY_POPUP_HEIGHT=$popup_height_env_q"
+    fi
     popup_cmd+=" $script_invocation"
 
     tmux bind-key "$trigger" run-shell "$popup_cmd"
