@@ -177,7 +177,7 @@ The config file is a JSON object with a top-level `items` array. Each item has:
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `key` | string | yes | Trigger key token. Supports literals (`h`, `{`) and modifier tokens (`C-x`, `M-x`, `C-Space`) |
+| `key` | string | yes | Trigger key token. Supports literals, modifiers (`C-*`, `M-*`), and named keys (`Enter`, `Tab`, `Up`, `F1`, etc.) |
 | `type` | string | yes | One of: `group`, `action`, `tmux`, `script`, `popup` |
 | `description` | string | yes | Label shown in the menu |
 | `command` | string | for non-groups | Command to execute |
@@ -218,6 +218,39 @@ Notes:
 - Modifier support is best-effort and depends on terminal/tmux key transport.
 - Shift-prefixed tokens (`S-*`) are not supported.
 - Unsupported tokens are ignored for matching and show a warning message once when used.
+
+### Named Special Keys
+
+Supported named keys:
+
+- `Enter`, `Tab`, `BTab`, `BSpace`, `Escape`
+- `Up`, `Down`, `Left`, `Right`
+- `Home`, `End`, `PageUp`, `PageDown`, `Delete`, `Insert`
+- `F1` through `F12`
+
+Examples:
+
+```json
+{
+  "items": [
+    { "key": "Enter", "type": "tmux", "command": "confirm-before -p 'Run?' 'display-message done'", "description": "Confirm" },
+    { "key": "Up", "type": "tmux", "command": "select-pane -U", "description": "Pane up" },
+    { "key": "F2", "type": "tmux", "command": "rename-window", "description": "Rename window" },
+    { "key": "M-Enter", "type": "tmux", "command": "split-window -v", "description": "Meta Enter split" }
+  ]
+}
+```
+
+Ambiguity policy:
+
+- `Tab` matches `Tab` and `C-i`
+- `Enter` matches `Enter`, `C-m`, and `C-j`
+- `Escape` matches `Escape` and `C-[`
+
+Navigation fallback:
+
+- Plain `Escape` still closes/backs out when there is no matching `Escape` entry in the current menu.
+- `BSpace` still goes back when there is no matching `BSpace` entry in the current menu.
 
 ### Example Config
 
