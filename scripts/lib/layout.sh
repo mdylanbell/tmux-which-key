@@ -63,3 +63,23 @@ wk_popup_content_height() {
     fi
     printf '%s\n' "$inner_height"
 }
+
+wk_compute_footer_padding() {
+    local content_rows="$1"
+    local popup_height="$2"
+    local used_lines_without_pad pad
+
+    [[ "$content_rows" =~ ^[0-9]+$ ]] || content_rows=0
+    [[ "$popup_height" =~ ^[0-9]+$ ]] || {
+        printf '0\n'
+        return 0
+    }
+
+    used_lines_without_pad=$((content_rows + WK_MENU_CHROME_LINES))
+    if ((popup_height > used_lines_without_pad)); then
+        pad=$((popup_height - used_lines_without_pad))
+    else
+        pad=0
+    fi
+    printf '%s\n' "$pad"
+}

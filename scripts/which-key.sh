@@ -22,6 +22,7 @@ load_lib() {
 load_lib "common.sh"
 load_lib "config_path.sh"
 load_lib "layout.sh"
+load_lib "render.sh"
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -425,10 +426,7 @@ render_menu() {
     local content_rows=0
 
     # Header
-    printf "%s  Which Key%s  %s│%s  %s%s%s\n" "$C_HDR" "$C_R" "$C_SEP" "$C_R" "$C_DESC" "$breadcrumb" "$C_R"
-    printf "%s" "$C_SEP"
-    printf '%.0s─' {1..98}
-    printf "%s\n" "$C_R"
+    wk_render_header "$breadcrumb" "$C_HDR" "$C_R" "$C_SEP" "$C_DESC"
 
     # Parse all items in one jq call
     local keys=() types=() descs=()
@@ -472,25 +470,16 @@ render_menu() {
     fi
 
     if [[ "$popup_height" =~ ^[0-9]+$ ]]; then
-        local used_lines_without_pad=$((content_rows + WK_MENU_CHROME_LINES))
-        if ((popup_height > used_lines_without_pad)); then
-            pad_lines=$((popup_height - used_lines_without_pad))
-        fi
+        pad_lines=$(wk_compute_footer_padding "$content_rows" "$popup_height")
     fi
 
-    local pad_i
-    for ((pad_i = 0; pad_i < pad_lines; pad_i++)); do
-        printf "\n"
-    done
+    wk_print_blank_lines "$pad_lines"
 
     # Footer
-    printf "\n%s" "$C_SEP"
-    printf '%.0s─' {1..98}
-    printf "%s\n" "$C_R"
     if nav_has_items; then
-        printf "  %sesc  close    ⌫  back%s" "$C_SEP" "$C_R"
+        wk_render_footer "true" "$C_SEP" "$C_R"
     else
-        printf "  %sesc  close%s" "$C_SEP" "$C_R"
+        wk_render_footer "false" "$C_SEP" "$C_R"
     fi
 
     MENU_LAST_ROW=$((content_rows + pad_lines + WK_MENU_CHROME_LINES))
