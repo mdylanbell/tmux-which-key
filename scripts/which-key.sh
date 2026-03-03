@@ -156,6 +156,7 @@ C_GRP=$(resolve_color "@which-key-color-group" "${WHICH_KEY_COLOR_GROUP:-$DEFAUL
 C_DESC=$(resolve_color "@which-key-color-desc" "${WHICH_KEY_COLOR_DESC:-$DEFAULT_COLOR_DESC}" "$DEFAULT_COLOR_DESC")
 C_SEP=$(resolve_color "@which-key-color-separator" "${WHICH_KEY_COLOR_SEPARATOR:-$DEFAULT_COLOR_SEPARATOR}" "$DEFAULT_COLOR_SEPARATOR")
 C_HDR=$(resolve_color "@which-key-color-header" "${WHICH_KEY_COLOR_HEADER:-$DEFAULT_COLOR_HEADER}" "$DEFAULT_COLOR_HEADER")
+MENU_LAST_ROW=1
 
 # Read entire config into memory once
 CONFIG=$(cat "$CONFIG_FILE")
@@ -541,6 +542,29 @@ render_menu() {
     else
         printf "  %sesc  close%s\n" "$C_SEP" "$C_R"
     fi
+
+    MENU_LAST_ROW=$((content_rows + pad_lines + 5))
+}
+
+hide_cursor() {
+    printf '\033[?25l'
+}
+
+show_cursor() {
+    printf '\033[?25h'
+}
+
+move_cursor_to_row() {
+    local row="${1:-1}"
+    if ! [[ "$row" =~ ^[0-9]+$ ]] || ((row < 1)); then
+        row=1
+    fi
+    printf '\033[%s;1H' "$row"
+}
+
+cleanup_ui() {
+    show_cursor
+    printf "%s" "$C_R"
 }
 
 handle_key() {
@@ -614,8 +638,12 @@ handle_key() {
 }
 
 # Main loop
+trap cleanup_ui EXIT INT TERM
+
 while true; do
     render_menu
+    hide_cursor
+    move_cursor_to_row "$MENU_LAST_ROW"
 
     keypress=""
     seq1=""
