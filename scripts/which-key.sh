@@ -215,11 +215,13 @@ handle_key() {
 while true; do
     render_menu
 
-    IFS= read -rsn1 keypress
+    keypress=""
+    IFS= read -rsn1 keypress || true
 
     # Escape
     if [[ "$keypress" == $'\x1b' ]]; then
-        read -rsn1 -t 0.1 seq1 || true
+        seq1=""
+        IFS= read -rsn1 -t 0.1 seq1 || true
         if [[ -z "$seq1" ]]; then
             if ! nav_pop; then
                 exit 0
