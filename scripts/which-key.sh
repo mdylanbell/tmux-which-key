@@ -538,9 +538,9 @@ render_menu() {
     printf '%.0s─' {1..98}
     printf "%s\n" "$C_R"
     if nav_has_items; then
-        printf "  %sesc  close    ⌫  back%s\n" "$C_SEP" "$C_R"
+        printf "  %sesc  close    ⌫  back%s" "$C_SEP" "$C_R"
     else
-        printf "  %sesc  close%s\n" "$C_SEP" "$C_R"
+        printf "  %sesc  close%s" "$C_SEP" "$C_R"
     fi
 
     MENU_LAST_ROW=$((content_rows + pad_lines + 5))
