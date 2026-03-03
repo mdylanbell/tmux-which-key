@@ -81,6 +81,11 @@ Set these in your `~/.tmux.conf` before loading the plugin:
 | `@which-key-popup-fg` | `#4C566A` | Popup border/foreground color |
 | `@which-key-popup-x` | `C` | Popup X position (`C` = centered) |
 | `@which-key-popup-y` | `S` | Popup Y position (`S` = status line) |
+| `@which-key-color-key` | `#EBCB8B` | Menu key color |
+| `@which-key-color-group` | `#88C0D0` | Group description color |
+| `@which-key-color-desc` | `#D8DEE9` | Description and breadcrumb color |
+| `@which-key-color-separator` | `#4C566A` | Separator, arrow, and footer hint color |
+| `@which-key-color-header` | `#81A1C1` | Header title color |
 
 Example:
 
@@ -90,6 +95,20 @@ set -g @which-key-popup-height '20'
 set -g @which-key-popup-width '120'
 set -g @plugin 'Nucc/tmux-which-key'
 ```
+
+### Theme Customization
+
+You can override in-menu colors with tmux options (format must be `#RRGGBB`):
+
+```tmux
+set -g @which-key-color-key '#F9E2AF'
+set -g @which-key-color-group '#89B4FA'
+set -g @which-key-color-desc '#CDD6F4'
+set -g @which-key-color-separator '#6C7086'
+set -g @which-key-color-header '#74C7EC'
+```
+
+Invalid values fall back to defaults and show a one-time warning in tmux messages when the menu opens.
 
 ### Custom Key Binding
 

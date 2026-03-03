@@ -95,13 +95,50 @@ else
     CONFIG_FILE=$(resolve_config_path "$CONFIG_FILE") || exit 1
 fi
 
-# Nord theme colors
-C_KEY=$'\033[38;2;235;203;139m'       # #EBCB8B - yellow
-C_GRP=$'\033[38;2;136;192;208m'       # #88C0D0 - cyan
-C_DESC=$'\033[38;2;216;222;233m'      # #D8DEE9 - light gray
-C_SEP=$'\033[38;2;76;86;106m'         # #4C566A - dark gray
-C_HDR=$'\033[38;2;129;161;193m'       # #81A1C1 - blue
+DEFAULT_COLOR_KEY="#EBCB8B"
+DEFAULT_COLOR_GROUP="#88C0D0"
+DEFAULT_COLOR_DESC="#D8DEE9"
+DEFAULT_COLOR_SEPARATOR="#4C566A"
+DEFAULT_COLOR_HEADER="#81A1C1"
 C_R=$'\033[0m'
+
+WARNED_INVALID_COLOR=0
+
+is_hex_color() {
+    [[ "$1" =~ ^#[0-9A-Fa-f]{6}$ ]]
+}
+
+hex_to_ansi_fg() {
+    local hex="${1#\#}"
+    local r=$((16#${hex:0:2}))
+    local g=$((16#${hex:2:2}))
+    local b=$((16#${hex:4:2}))
+    printf '\033[38;2;%d;%d;%dm' "$r" "$g" "$b"
+}
+
+warn_invalid_color() {
+    local option_name="$1"
+    local option_value="$2"
+
+    if ((WARNED_INVALID_COLOR == 0)); then
+        tmux display-message "tmux-which-key: invalid color for $option_name ($option_value), using defaults" 2>/dev/null || true
+        WARNED_INVALID_COLOR=1
+    fi
+}
+
+resolve_color() {
+    local option_name="$1"
+    local value="$2"
+    local fallback_hex="$3"
+
+    if is_hex_color "$value"; then
+        hex_to_ansi_fg "$value"
+        return 0
+    fi
+
+    warn_invalid_color "$option_name" "$value"
+    hex_to_ansi_fg "$fallback_hex"
+}
 
 if [[ -z "$PANE_ID" ]]; then
     echo "Usage: which-key.sh [--config <path>] <pane_id>"
@@ -112,6 +149,13 @@ if [[ ! -f "$CONFIG_FILE" ]]; then
     echo "Config not found: $CONFIG_FILE"
     exit 1
 fi
+
+# Resolve menu token colors from env (set by which-key.tmux), with defaults
+C_KEY=$(resolve_color "@which-key-color-key" "${WHICH_KEY_COLOR_KEY:-$DEFAULT_COLOR_KEY}" "$DEFAULT_COLOR_KEY")
+C_GRP=$(resolve_color "@which-key-color-group" "${WHICH_KEY_COLOR_GROUP:-$DEFAULT_COLOR_GROUP}" "$DEFAULT_COLOR_GROUP")
+C_DESC=$(resolve_color "@which-key-color-desc" "${WHICH_KEY_COLOR_DESC:-$DEFAULT_COLOR_DESC}" "$DEFAULT_COLOR_DESC")
+C_SEP=$(resolve_color "@which-key-color-separator" "${WHICH_KEY_COLOR_SEPARATOR:-$DEFAULT_COLOR_SEPARATOR}" "$DEFAULT_COLOR_SEPARATOR")
+C_HDR=$(resolve_color "@which-key-color-header" "${WHICH_KEY_COLOR_HEADER:-$DEFAULT_COLOR_HEADER}" "$DEFAULT_COLOR_HEADER")
 
 # Read entire config into memory once
 CONFIG=$(cat "$CONFIG_FILE")
