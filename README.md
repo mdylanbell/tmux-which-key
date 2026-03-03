@@ -107,6 +107,7 @@ set -g @plugin 'Nucc/tmux-which-key'
 - With `@which-key-popup-auto-height` set to `on`, popup height is treated as a minimum and grows when needed to fit menu rows.
 
 Auto-height is computed from the configured menu structure and clamped to client size to avoid overflow.
+If `@which-key-config` cannot be resolved for sizing, which-key falls back to baseline popup height and emits a tmux warning message.
 
 When a numeric popup height is in use, the footer separator and `esc close` hint stay anchored near the bottom of the popup.
 

@@ -29,6 +29,10 @@ load_lib "cursor.sh"
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --config)
+            if [[ $# -lt 2 || -z "$2" ]]; then
+                echo "Usage: which-key.sh [--config <path>] <pane_id>"
+                exit 1
+            fi
             CONFIG_FILE="$2"
             shift 2
             ;;
@@ -39,30 +43,12 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-resolve_config_path() {
-    local raw="$1"
-    local pane_path
-    local expanded
-
-    pane_path=$(tmux display-message -t "$PANE_ID" -p '#{pane_current_path}' 2>/dev/null || pwd)
-    expanded=$(wk_resolve_config_path "$raw" "$pane_path") || return 1
-
-    printf '%s\n' "$expanded"
-}
-
 # Resolve config file: explicit > XDG > user home > plugin default
 if [[ -z "$CONFIG_FILE" ]]; then
-    local_xdg="${XDG_CONFIG_HOME:-$HOME/.config}/tmux-which-key/config.json"
-    local_home="$HOME/.tmux-which-key.json"
-    if [[ -f "$local_xdg" ]]; then
-        CONFIG_FILE="$local_xdg"
-    elif [[ -f "$local_home" ]]; then
-        CONFIG_FILE="$local_home"
-    else
-            CONFIG_FILE=$(wk_default_config_file "$PLUGIN_DIR")
-    fi
+    CONFIG_FILE=$(wk_default_config_file "$PLUGIN_DIR")
 else
-    CONFIG_FILE=$(resolve_config_path "$CONFIG_FILE") || exit 1
+    pane_path=$(tmux display-message -t "$PANE_ID" -p '#{pane_current_path}' 2>/dev/null || pwd)
+    CONFIG_FILE=$(wk_resolve_existing_config_file_with_base "$CONFIG_FILE" "$PLUGIN_DIR" "$pane_path") || exit 1
 fi
 
 DEFAULT_COLOR_KEY="#EBCB8B"
@@ -112,11 +98,6 @@ resolve_color() {
 
 if [[ -z "$PANE_ID" ]]; then
     echo "Usage: which-key.sh [--config <path>] <pane_id>"
-    exit 1
-fi
-
-if [[ ! -f "$CONFIG_FILE" ]]; then
-    echo "Config not found: $CONFIG_FILE"
     exit 1
 fi
 

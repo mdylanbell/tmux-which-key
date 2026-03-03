@@ -84,3 +84,23 @@ wk_default_config_file() {
     candidate="$plugin_dir/configs/default.json"
     printf '%s\n' "$candidate"
 }
+
+wk_resolve_existing_config_file_with_base() {
+    local raw="$1"
+    local plugin_dir="$2"
+    local relative_base="$3"
+    local resolved
+
+    if [[ -z "$raw" ]]; then
+        resolved=$(wk_default_config_file "$plugin_dir")
+    else
+        resolved=$(wk_resolve_config_path "$raw" "$relative_base") || return 1
+    fi
+
+    if [[ ! -f "$resolved" ]]; then
+        echo "Config not found: $resolved" >&2
+        return 1
+    fi
+
+    printf '%s\n' "$resolved"
+}
