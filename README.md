@@ -73,7 +73,7 @@ Set these in your `~/.tmux.conf` before loading the plugin:
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `@which-key-trigger` | `Space` | Key binding (after prefix) to open the menu |
+| `@which-key-trigger` | `Space` | Key binding (after prefix) to open the menu. Disable with `None`, `Off`, `Disabled`, `False`, or `0` |
 | `@which-key-config` | _(auto-detected)_ | Path to a custom JSON config file |
 | `@which-key-popup-height` | `16` | Popup height in lines |
 | `@which-key-popup-width` | `100` | Popup width in characters |
@@ -93,7 +93,14 @@ set -g @plugin 'Nucc/tmux-which-key'
 
 ### Custom Key Binding
 
-By default the plugin binds `prefix + Space`. You can override this with `@which-key-trigger`, or create your own binding entirely in `~/.tmux.conf`.
+Trigger precedence is:
+1. If `@which-key-trigger` is unset or empty, bind `prefix + Space`.
+2. If `@which-key-trigger` is one of `None`, `Off`, `Disabled`, `False`, or `0`, do not bind a plugin trigger.
+3. Otherwise, bind `prefix + <@which-key-trigger>`.
+
+On reload, the plugin unbinds its previously managed trigger first, so old plugin-managed bindings do not linger.
+
+You can also create your own binding entirely in `~/.tmux.conf`.
 
 To bind `Ctrl-Space` directly (no prefix needed):
 
@@ -109,6 +116,13 @@ To use a custom config with a manual binding:
 
 ```tmux
 bind-key -n C-Space run-shell 'tmux display-popup -E -h 16 -w 100 -x C -y S -S "fg=#4C566A" -s "bg=#2E3440" "~/.tmux/plugins/tmux-which-key/scripts/which-key.sh --config ~/.config/tmux-which-key/config.json #{pane_id}"'
+```
+
+To verify active bindings:
+
+```bash
+tmux list-keys -T prefix | grep which-key.sh
+tmux list-keys -T root | grep which-key.sh
 ```
 
 ### Custom Config File
