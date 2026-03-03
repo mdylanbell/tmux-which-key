@@ -358,14 +358,12 @@ run_shell_bg() {
 run_tmux_command() {
     local command="$1"
     local defer="${2:-false}"
-    local command_quoted
     local shell_script
 
-    command_quoted=$(shell_quote "$command")
     if [[ "$defer" == "true" ]]; then
-        shell_script="sleep 0.1 && tmux $command_quoted"
+        shell_script="sleep 0.1 && tmux $command"
     else
-        shell_script="tmux $command_quoted"
+        shell_script="tmux $command"
     fi
     run_shell_bg "$shell_script"
 }
@@ -408,10 +406,19 @@ is_client_scoped_tmux_command() {
 
 command_has_explicit_client_target() {
     local command="$1"
+    local subcommand="$2"
 
-    if [[ "$command" =~ (^|[[:space:]])-c([[:space:]]|$) || "$command" =~ (^|[[:space:]])-t([[:space:]]|$) ]]; then
-        return 0
-    fi
+    case "$subcommand" in
+        switch-client)
+            [[ "$command" =~ (^|[[:space:]])-c([[:space:]]|$) ]]
+            return $?
+            ;;
+        detach-client|refresh-client|lock-client)
+            [[ "$command" =~ (^|[[:space:]])-t([[:space:]]|$) ]]
+            return $?
+            ;;
+    esac
+
     return 1
 }
 
@@ -557,7 +564,7 @@ handle_key() {
                     auto_target_opt=$(tmux show-option -gqv "@which-key-tmux-auto-target" 2>/dev/null || true)
                     if is_truthy_option "$auto_target_opt" "on"; then
                         if tmux_subcommand=$(get_tmux_subcommand "$command"); then
-                            if is_client_scoped_tmux_command "$tmux_subcommand" && ! command_has_explicit_client_target "$command"; then
+                            if is_client_scoped_tmux_command "$tmux_subcommand" && ! command_has_explicit_client_target "$command" "$tmux_subcommand"; then
                                 client_name=$(get_invoking_client_name)
                                 if [[ -n "$client_name" ]]; then
                                     effective_command=$(inject_client_target "$command" "$tmux_subcommand" "$client_name")
