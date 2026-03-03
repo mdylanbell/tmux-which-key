@@ -182,6 +182,97 @@ nav_has_items() {
     ((NAV_DEPTH > 0))
 }
 
+WARNED_UNSUPPORTED_KEY=0
+
+warn_unsupported_key() {
+    local raw_key="$1"
+
+    if ((WARNED_UNSUPPORTED_KEY == 0)); then
+        tmux display-message "tmux-which-key: unsupported key token '$raw_key' (expected literal, C-<char>, M-<char>, or *-Space)" 2>/dev/null || true
+        WARNED_UNSUPPORTED_KEY=1
+    fi
+}
+
+normalize_config_key() {
+    local raw_key="$1"
+    local mod
+    local base
+
+    if [[ ${#raw_key} -eq 1 ]]; then
+        printf '%s\n' "$raw_key"
+        return 0
+    fi
+
+    if [[ "$raw_key" =~ ^(C|M)-(.+)$ ]]; then
+        mod="${BASH_REMATCH[1]}"
+        base="${BASH_REMATCH[2]}"
+
+        if [[ "$base" == "Space" ]]; then
+            printf '%s\n' "${mod}-Space"
+            return 0
+        fi
+
+        if [[ ${#base} -eq 1 ]]; then
+            base=$(printf '%s' "$base" | tr '[:upper:]' '[:lower:]')
+            printf '%s\n' "${mod}-${base}"
+            return 0
+        fi
+    fi
+
+    warn_unsupported_key "$raw_key"
+    return 1
+}
+
+normalize_input_key() {
+    local key="$1"
+
+    case "$key" in
+        $'\x00') printf '%s\n' "C-Space" ;;
+        $'\x01') printf '%s\n' "C-a" ;;
+        $'\x02') printf '%s\n' "C-b" ;;
+        $'\x03') printf '%s\n' "C-c" ;;
+        $'\x04') printf '%s\n' "C-d" ;;
+        $'\x05') printf '%s\n' "C-e" ;;
+        $'\x06') printf '%s\n' "C-f" ;;
+        $'\x07') printf '%s\n' "C-g" ;;
+        $'\x08') printf '%s\n' "C-h" ;;
+        $'\x09') printf '%s\n' "C-i" ;;
+        $'\x0a') printf '%s\n' "C-j" ;;
+        $'\x0b') printf '%s\n' "C-k" ;;
+        $'\x0c') printf '%s\n' "C-l" ;;
+        $'\x0d') printf '%s\n' "C-m" ;;
+        $'\x0e') printf '%s\n' "C-n" ;;
+        $'\x0f') printf '%s\n' "C-o" ;;
+        $'\x10') printf '%s\n' "C-p" ;;
+        $'\x11') printf '%s\n' "C-q" ;;
+        $'\x12') printf '%s\n' "C-r" ;;
+        $'\x13') printf '%s\n' "C-s" ;;
+        $'\x14') printf '%s\n' "C-t" ;;
+        $'\x15') printf '%s\n' "C-u" ;;
+        $'\x16') printf '%s\n' "C-v" ;;
+        $'\x17') printf '%s\n' "C-w" ;;
+        $'\x18') printf '%s\n' "C-x" ;;
+        $'\x19') printf '%s\n' "C-y" ;;
+        $'\x1a') printf '%s\n' "C-z" ;;
+        $'\x1c') printf '%s\n' "C-\\" ;;
+        $'\x1d') printf '%s\n' "C-]" ;;
+        $'\x1e') printf '%s\n' "C-^" ;;
+        $'\x1f') printf '%s\n' "C-_" ;;
+        *)
+            printf '%s\n' "$key"
+            ;;
+    esac
+}
+
+keys_match() {
+    local config_key="$1"
+    local input_key="$2"
+    local normalized_config
+
+    normalized_config=$(normalize_config_key "$config_key") || return 1
+    [[ "$normalized_config" == "$input_key" ]]
+}
+
 # Get current items as tab-separated lines: key\ttype\tdescription\tcommand\timmediate
 # Single jq call per menu level instead of per-item
 get_current_items() {
@@ -271,11 +362,11 @@ render_menu() {
 }
 
 handle_key() {
-    local keypress="$1"
+    local input_key="$1"
     local i=0
 
     while IFS=$'\t' read -r key type desc command immediate; do
-        if [[ "$key" == "$keypress" ]]; then
+        if keys_match "$key" "$input_key"; then
             case "$type" in
                 group)
                     nav_push "$i"
@@ -334,6 +425,9 @@ while true; do
             if ! nav_pop; then
                 exit 0
             fi
+        elif [[ ${#seq1} -eq 1 ]]; then
+            meta_key=$(printf '%s' "$seq1" | tr '[:upper:]' '[:lower:]')
+            handle_key "M-$meta_key"
         fi
         continue
     fi
@@ -348,6 +442,7 @@ while true; do
 
     # Regular key
     if [[ -n "$keypress" ]]; then
-        handle_key "$keypress"
+        normalized_key=$(normalize_input_key "$keypress")
+        handle_key "$normalized_key"
     fi
 done
