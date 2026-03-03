@@ -134,6 +134,15 @@ The plugin looks for a config file in this order:
 3. `~/.tmux-which-key.json`
 4. Plugin's built-in `configs/default.json`
 
+When `@which-key-config` is set, the value supports:
+
+- absolute paths (`/path/to/config.json`)
+- current-user home expansion (`~/...`)
+- environment variables (`$HOME/...` and `${HOME}/...`)
+- relative paths (resolved against the active pane working directory)
+
+If an environment variable in `@which-key-config` is undefined, the plugin exits with an explicit error.
+
 To create your own config:
 
 ```bash

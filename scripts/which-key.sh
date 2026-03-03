@@ -22,6 +22,64 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+expand_env_refs() {
+    local input="$1"
+    local output=""
+    local rest="$input"
+    local var_name
+
+    while [[ -n "$rest" ]]; do
+        if [[ "$rest" =~ ^([^$]*)\$\{([A-Za-z_][A-Za-z0-9_]*)\}(.*)$ ]]; then
+            output+="${BASH_REMATCH[1]}"
+            var_name="${BASH_REMATCH[2]}"
+            rest="${BASH_REMATCH[3]}"
+        elif [[ "$rest" =~ ^([^$]*)\$([A-Za-z_][A-Za-z0-9_]*)(.*)$ ]]; then
+            output+="${BASH_REMATCH[1]}"
+            var_name="${BASH_REMATCH[2]}"
+            rest="${BASH_REMATCH[3]}"
+        else
+            if [[ "$rest" == *'$'* ]]; then
+                echo "Unsupported variable expression in config path: $input"
+                return 1
+            fi
+            output+="$rest"
+            break
+        fi
+
+        if [[ -z ${!var_name+x} ]]; then
+            echo "Undefined environment variable in config path: $var_name"
+            return 1
+        fi
+        output+="${!var_name}"
+    done
+
+    printf '%s\n' "$output"
+}
+
+resolve_config_path() {
+    local raw="$1"
+    local expanded
+    local pane_path
+
+    expanded=$(expand_env_refs "$raw") || return 1
+
+    case "$expanded" in
+        "~")
+            expanded="$HOME"
+            ;;
+        "~/"*)
+            expanded="$HOME/${expanded#~/}"
+            ;;
+    esac
+
+    if [[ "$expanded" != /* ]]; then
+        pane_path=$(tmux display-message -t "$PANE_ID" -p '#{pane_current_path}' 2>/dev/null || pwd)
+        expanded="$pane_path/$expanded"
+    fi
+
+    printf '%s\n' "$expanded"
+}
+
 # Resolve config file: explicit > XDG > user home > plugin default
 if [[ -z "$CONFIG_FILE" ]]; then
     local_xdg="${XDG_CONFIG_HOME:-$HOME/.config}/tmux-which-key/config.json"
@@ -33,6 +91,8 @@ if [[ -z "$CONFIG_FILE" ]]; then
     else
         CONFIG_FILE="$PLUGIN_DIR/configs/default.json"
     fi
+else
+    CONFIG_FILE=$(resolve_config_path "$CONFIG_FILE") || exit 1
 fi
 
 # Nord theme colors
