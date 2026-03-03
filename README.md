@@ -177,7 +177,7 @@ The config file is a JSON object with a top-level `items` array. Each item has:
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `key` | string | yes | Single character that triggers this item |
+| `key` | string | yes | Trigger key token. Supports literals (`h`, `{`) and modifier tokens (`C-x`, `M-x`, `C-Space`) |
 | `type` | string | yes | One of: `group`, `action`, `tmux`, `script`, `popup` |
 | `description` | string | yes | Label shown in the menu |
 | `command` | string | for non-groups | Command to execute |
@@ -193,6 +193,31 @@ The config file is a JSON object with a top-level `items` array. Each item has:
 | `tmux` | Executes a tmux command directly | `split-window -h` |
 | `script` | Runs a shell script via `tmux run-shell` | `~/scripts/my-script.sh` |
 | `popup` | Opens command in a temporary `display-popup` at the pane's working directory. Closes on exit or Escape. | `lazygit` |
+
+### Modifier Keys (`C-` / `M-`)
+
+You can use tmux-style modifier tokens in `key` values:
+
+- `C-x` for Ctrl+`x`
+- `M-x` for Meta/Alt+`x`
+- `C-Space` and `M-Space`
+
+Example:
+
+```json
+{
+  "items": [
+    { "key": "C-s", "type": "tmux", "command": "split-window -v", "description": "Split (Ctrl-s)" },
+    { "key": "M-x", "type": "tmux", "command": "kill-pane", "description": "Kill pane (Meta-x)" }
+  ]
+}
+```
+
+Notes:
+
+- Modifier support is best-effort and depends on terminal/tmux key transport.
+- Shift-prefixed tokens (`S-*`) are not supported.
+- Unsupported tokens are ignored for matching and show a warning message once when used.
 
 ### Example Config
 
