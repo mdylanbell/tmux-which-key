@@ -108,6 +108,8 @@ set -g @plugin 'Nucc/tmux-which-key'
 
 Auto-height is computed from the configured menu structure and clamped to client size to avoid overflow.
 
+When a numeric popup height is in use, the footer separator and `esc close` hint stay anchored near the bottom of the popup.
+
 ### Theme Customization
 
 You can override in-menu colors with tmux options (format must be `#RRGGBB`):
