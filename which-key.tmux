@@ -120,7 +120,7 @@ max_items_per_menu() {
 compute_effective_popup_height() {
     local min_height="$1"
     local config_file="$2"
-    local max_items max_rows required_height effective client_height cap
+    local max_items max_rows required_inner_height required_outer_height effective client_height cap
 
     [[ "$min_height" =~ ^[0-9]+$ ]] || min_height=16
 
@@ -128,11 +128,13 @@ compute_effective_popup_height() {
     [[ "$max_items" =~ ^[0-9]+$ ]] || max_items=0
     max_rows=$(( (max_items + 2) / 3 ))
 
-    # Header + top separator + blank spacer + bottom separator + footer hint
-    required_height=$((max_rows + 5))
+    # Inner render rows: header + top separator + content + spacer + footer separator + footer hint
+    required_inner_height=$((max_rows + 5))
+    # Popup border consumes one line at top and bottom
+    required_outer_height=$((required_inner_height + 2))
     effective=$min_height
-    if ((required_height > effective)); then
-        effective=$required_height
+    if ((required_outer_height > effective)); then
+        effective=$required_outer_height
     fi
 
     client_height=$(tmux display-message -p '#{client_height}' 2>/dev/null || true)
@@ -147,6 +149,18 @@ compute_effective_popup_height() {
         effective=6
     fi
     printf '%s\n' "$effective"
+}
+
+popup_content_height() {
+    local popup_height="$1"
+    local inner_height
+
+    [[ "$popup_height" =~ ^[0-9]+$ ]] || return 1
+    inner_height=$((popup_height - 2))
+    if ((inner_height < 1)); then
+        inner_height=1
+    fi
+    printf '%s\n' "$inner_height"
 }
 
 main() {
@@ -224,10 +238,10 @@ main() {
         resolved_config=$(resolve_config_file_for_height "$config" 2>/dev/null || true)
         if [[ -n "$resolved_config" ]]; then
             effective_popup_height=$(compute_effective_popup_height "$popup_height" "$resolved_config")
-            popup_height_env="$effective_popup_height"
+            popup_height_env=$(popup_content_height "$effective_popup_height" 2>/dev/null || true)
         fi
     elif [[ "$popup_height" =~ ^[0-9]+$ ]]; then
-        popup_height_env="$popup_height"
+        popup_height_env=$(popup_content_height "$popup_height" 2>/dev/null || true)
     fi
 
     # Build script invocation with shell-safe quoting
