@@ -23,6 +23,7 @@ load_lib "common.sh"
 load_lib "config_path.sh"
 load_lib "layout.sh"
 load_lib "render.sh"
+load_lib "cursor.sh"
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -485,25 +486,8 @@ render_menu() {
     MENU_LAST_ROW=$((content_rows + pad_lines + WK_MENU_CHROME_LINES))
 }
 
-hide_cursor() {
-    printf '\033[?25l'
-}
-
-show_cursor() {
-    printf '\033[?25h'
-}
-
-move_cursor_to_row() {
-    local row="${1:-1}"
-    if ! [[ "$row" =~ ^[0-9]+$ ]] || ((row < 1)); then
-        row=1
-    fi
-    printf '\033[%s;1H' "$row"
-}
-
 cleanup_ui() {
-    show_cursor
-    printf "%s" "$C_R"
+    wk_cleanup_ui "$C_R"
 }
 
 handle_key() {
@@ -581,8 +565,8 @@ trap cleanup_ui EXIT INT TERM
 
 while true; do
     render_menu
-    hide_cursor
-    move_cursor_to_row "$MENU_LAST_ROW"
+    wk_hide_cursor
+    wk_move_cursor_to_row "$MENU_LAST_ROW"
 
     keypress=""
     seq1=""
