@@ -370,6 +370,68 @@ run_tmux_command() {
     run_shell_bg "$shell_script"
 }
 
+is_truthy_option() {
+    local value="$1"
+    local default_value="$2"
+    local normalized
+
+    if [[ -z "$value" ]]; then
+        value="$default_value"
+    fi
+
+    normalized=$(printf '%s' "$value" | tr '[:upper:]' '[:lower:]')
+    case "$normalized" in
+        1|on|true|yes)
+            return 0
+            ;;
+    esac
+    return 1
+}
+
+get_tmux_subcommand() {
+    local command="$1"
+    if [[ "$command" =~ ^[[:space:]]*([[:alnum:]-]+) ]]; then
+        printf '%s\n' "${BASH_REMATCH[1]}"
+        return 0
+    fi
+    return 1
+}
+
+is_client_scoped_tmux_command() {
+    case "$1" in
+        switch-client|detach-client|refresh-client|lock-client)
+            return 0
+            ;;
+    esac
+    return 1
+}
+
+command_has_explicit_client_target() {
+    local command="$1"
+
+    if [[ "$command" =~ (^|[[:space:]])-c([[:space:]]|$) || "$command" =~ (^|[[:space:]])-t([[:space:]]|$) ]]; then
+        return 0
+    fi
+    return 1
+}
+
+get_invoking_client_name() {
+    tmux display-message -t "$PANE_ID" -p '#{client_name}' 2>/dev/null || true
+}
+
+inject_client_target() {
+    local command="$1"
+    local subcommand="$2"
+    local client_name="$3"
+    local target_flag="-t"
+
+    if [[ "$subcommand" == "switch-client" ]]; then
+        target_flag="-c"
+    fi
+
+    printf '%s %s %s\n' "$command" "$target_flag" "$client_name"
+}
+
 # Get current items as tab-separated lines: key\ttype\tdescription\tcommand\timmediate
 # Single jq call per menu level instead of per-item
 get_current_items() {
@@ -487,12 +549,29 @@ handle_key() {
                     exit 0
                     ;;
                 tmux)
-                    case "$command" in
+                    local effective_command="$command"
+                    local auto_target_opt
+                    local tmux_subcommand
+                    local client_name
+
+                    auto_target_opt=$(tmux show-option -gqv "@which-key-tmux-auto-target" 2>/dev/null || true)
+                    if is_truthy_option "$auto_target_opt" "on"; then
+                        if tmux_subcommand=$(get_tmux_subcommand "$command"); then
+                            if is_client_scoped_tmux_command "$tmux_subcommand" && ! command_has_explicit_client_target "$command"; then
+                                client_name=$(get_invoking_client_name)
+                                if [[ -n "$client_name" ]]; then
+                                    effective_command=$(inject_client_target "$command" "$tmux_subcommand" "$client_name")
+                                fi
+                            fi
+                        fi
+                    fi
+
+                    case "$effective_command" in
                         choose-*|command-prompt*|customize-mode*|copy-mode*)
-                            run_tmux_command "$command" true
+                            run_tmux_command "$effective_command" true
                             ;;
                         *)
-                            run_tmux_command "$command" false
+                            run_tmux_command "$effective_command" false
                             ;;
                     esac
                     exit 0
