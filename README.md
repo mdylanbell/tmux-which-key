@@ -86,6 +86,7 @@ Set these in your `~/.tmux.conf` before loading the plugin:
 | `@which-key-color-desc` | `#D8DEE9` | Description and breadcrumb color |
 | `@which-key-color-separator` | `#4C566A` | Separator, arrow, and footer hint color |
 | `@which-key-color-header` | `#81A1C1` | Header title color |
+| `@which-key-tmux-auto-target` | `on` | Auto-add client target for client-scoped tmux commands (`switch-client`, `detach-client`, `refresh-client`, `lock-client`) |
 
 Example:
 
@@ -219,6 +220,23 @@ Troubleshooting:
 - If a `popup` item exits immediately, test the command directly in a shell first.
 - If a `tmux` item appears to no-op, check quoting around `\\;` and format strings (`#{...}`).
 - Use `tmux show-messages` to inspect errors returned by tmux commands.
+
+### Client-Scoped tmux Commands
+
+When `@which-key-tmux-auto-target` is enabled (default), which-key auto-targets the invoking client for these tmux commands when no explicit target is present:
+
+- `switch-client` (adds `-c <client_name>`)
+- `detach-client`, `refresh-client`, `lock-client` (adds `-t <client_name>`)
+
+This makes popup execution behave like direct key bindings for client-scoped commands (for example, `switch-client -l`).
+
+Explicitly targeted commands are never modified. If your command already includes `-c` or `-t`, the plugin uses it as-is.
+
+To disable auto-targeting:
+
+```tmux
+set -g @which-key-tmux-auto-target 'off'
+```
 
 ### Modifier Keys (`C-` / `M-`)
 
