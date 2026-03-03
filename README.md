@@ -110,6 +110,8 @@ Auto-height is computed from the configured menu structure and clamped to client
 
 When a numeric popup height is in use, the footer separator and `esc close` hint stay anchored near the bottom of the popup.
 
+While the menu is open, the script hides the terminal cursor and restores it on exit to avoid a stray cursor row below the footer.
+
 ### Theme Customization
 
 You can override in-menu colors with tmux options (format must be `#RRGGBB`):
