@@ -230,7 +230,9 @@ When `@which-key-tmux-auto-target` is enabled (default), which-key auto-targets 
 
 This makes popup execution behave like direct key bindings for client-scoped commands (for example, `switch-client -l`).
 
-Explicitly targeted commands are never modified. If your command already includes `-c` or `-t`, the plugin uses it as-is.
+Explicitly targeted commands are never modified:
+- `switch-client` is considered explicitly client-targeted only when `-c` is present.
+- `detach-client`, `refresh-client`, and `lock-client` are considered explicitly client-targeted when `-t` is present.
 
 To disable auto-targeting:
 
