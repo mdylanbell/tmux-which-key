@@ -83,9 +83,14 @@ main() {
 
     # Build config flag
     local config_flag=""
+    local config_q=""
     if [[ -n "$config" ]]; then
-        config_flag="--config $config"
+        config_q=$(printf '%q' "$config")
+        config_flag=" --config $config_q"
     fi
+
+    local script_path_q
+    script_path_q=$(printf '%q' "$CURRENT_DIR/scripts/which-key.sh")
 
     # Build popup command
     local popup_cmd="tmux display-popup -E"
@@ -97,7 +102,7 @@ main() {
     popup_cmd+=" -e WHICH_KEY_COLOR_DESC=$color_desc_q"
     popup_cmd+=" -e WHICH_KEY_COLOR_SEPARATOR=$color_separator_q"
     popup_cmd+=" -e WHICH_KEY_COLOR_HEADER=$color_header_q"
-    popup_cmd+=" '$CURRENT_DIR/scripts/which-key.sh $config_flag #{pane_id}'"
+    popup_cmd+=" \"$script_path_q$config_flag #{pane_id}\""
 
     tmux bind-key "$trigger" run-shell "$popup_cmd"
     tmux set-option -gq "@which-key-trigger-bound" "$trigger"
