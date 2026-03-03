@@ -188,9 +188,18 @@ warn_unsupported_key() {
     local raw_key="$1"
 
     if ((WARNED_UNSUPPORTED_KEY == 0)); then
-        tmux display-message "tmux-which-key: unsupported key token '$raw_key' (expected literal, C-<char>, M-<char>, or *-Space)" 2>/dev/null || true
+        tmux display-message "tmux-which-key: unsupported key token '$raw_key'" 2>/dev/null || true
         WARNED_UNSUPPORTED_KEY=1
     fi
+}
+
+is_named_key() {
+    case "$1" in
+        Enter|Tab|BTab|BSpace|Escape|Up|Down|Left|Right|Home|End|PageUp|PageDown|Delete|Insert|F1|F2|F3|F4|F5|F6|F7|F8|F9|F10|F11|F12)
+            return 0
+            ;;
+    esac
+    return 1
 }
 
 normalize_config_key() {
@@ -199,6 +208,11 @@ normalize_config_key() {
     local base
 
     if [[ ${#raw_key} -eq 1 ]]; then
+        printf '%s\n' "$raw_key"
+        return 0
+    fi
+
+    if is_named_key "$raw_key"; then
         printf '%s\n' "$raw_key"
         return 0
     fi
@@ -217,10 +231,59 @@ normalize_config_key() {
             printf '%s\n' "${mod}-${base}"
             return 0
         fi
+
+        if is_named_key "$base"; then
+            printf '%s\n' "${mod}-${base}"
+            return 0
+        fi
     fi
 
     warn_unsupported_key "$raw_key"
     return 1
+}
+
+decode_escape_sequence() {
+    local seq="$1"
+    local meta_key
+
+    case "$seq" in
+        '[A') printf '%s\n' "Up" ;;
+        '[B') printf '%s\n' "Down" ;;
+        '[C') printf '%s\n' "Right" ;;
+        '[D') printf '%s\n' "Left" ;;
+        '[H') printf '%s\n' "Home" ;;
+        '[F') printf '%s\n' "End" ;;
+        '[Z') printf '%s\n' "BTab" ;;
+        '[2~') printf '%s\n' "Insert" ;;
+        '[3~') printf '%s\n' "Delete" ;;
+        '[5~') printf '%s\n' "PageUp" ;;
+        '[6~') printf '%s\n' "PageDown" ;;
+        'OP'|'[11~') printf '%s\n' "F1" ;;
+        'OQ'|'[12~') printf '%s\n' "F2" ;;
+        'OR'|'[13~') printf '%s\n' "F3" ;;
+        'OS'|'[14~') printf '%s\n' "F4" ;;
+        '[15~') printf '%s\n' "F5" ;;
+        '[17~') printf '%s\n' "F6" ;;
+        '[18~') printf '%s\n' "F7" ;;
+        '[19~') printf '%s\n' "F8" ;;
+        '[20~') printf '%s\n' "F9" ;;
+        '[21~') printf '%s\n' "F10" ;;
+        '[23~') printf '%s\n' "F11" ;;
+        '[24~') printf '%s\n' "F12" ;;
+        $'\t') printf '%s\n' "M-Tab" ;;
+        $'\r'|$'\n') printf '%s\n' "M-Enter" ;;
+        $'\x7f'|$'\x08') printf '%s\n' "M-BSpace" ;;
+        ' ')
+            printf '%s\n' "M-Space"
+            ;;
+        ?)
+            meta_key=$(printf '%s' "$seq" | tr '[:upper:]' '[:lower:]')
+            printf '%s\n' "M-$meta_key"
+            ;;
+        *)
+            return 1
+            ;;
+    esac
 }
 
 normalize_input_key() {
@@ -236,11 +299,11 @@ normalize_input_key() {
         $'\x06') printf '%s\n' "C-f" ;;
         $'\x07') printf '%s\n' "C-g" ;;
         $'\x08') printf '%s\n' "C-h" ;;
-        $'\x09') printf '%s\n' "C-i" ;;
+        $'\x09') printf '%s\n' "Tab" ;;
         $'\x0a') printf '%s\n' "C-j" ;;
         $'\x0b') printf '%s\n' "C-k" ;;
         $'\x0c') printf '%s\n' "C-l" ;;
-        $'\x0d') printf '%s\n' "C-m" ;;
+        $'\x0d') printf '%s\n' "Enter" ;;
         $'\x0e') printf '%s\n' "C-n" ;;
         $'\x0f') printf '%s\n' "C-o" ;;
         $'\x10') printf '%s\n' "C-p" ;;
@@ -258,6 +321,7 @@ normalize_input_key() {
         $'\x1d') printf '%s\n' "C-]" ;;
         $'\x1e') printf '%s\n' "C-^" ;;
         $'\x1f') printf '%s\n' "C-_" ;;
+        $'\x7f') printf '%s\n' "BSpace" ;;
         *)
             printf '%s\n' "$key"
             ;;
@@ -270,7 +334,17 @@ keys_match() {
     local normalized_config
 
     normalized_config=$(normalize_config_key "$config_key") || return 1
-    [[ "$normalized_config" == "$input_key" ]]
+    if [[ "$normalized_config" == "$input_key" ]]; then
+        return 0
+    fi
+
+    case "$normalized_config:$input_key" in
+        C-i:Tab|Tab:C-i|C-m:Enter|Enter:C-m|C-[:Escape|Escape:C-[|C-h:BSpace|BSpace:C-h|C-j:Enter|Enter:C-j)
+            return 0
+            ;;
+    esac
+
+    return 1
 }
 
 # Get current items as tab-separated lines: key\ttype\tdescription\tcommand\timmediate
@@ -408,6 +482,8 @@ handle_key() {
         fi
         ((i++))
     done < <(get_current_items)
+
+    return 1
 }
 
 # Main loop
@@ -415,25 +491,40 @@ while true; do
     render_menu
 
     keypress=""
+    seq1=""
+    seq_rest=""
+    escape_seq=""
+    decoded_key=""
     IFS= read -rsn1 keypress || true
 
     # Escape
     if [[ "$keypress" == $'\x1b' ]]; then
-        seq1=""
         IFS= read -rsn1 -t 0.1 seq1 || true
         if [[ -z "$seq1" ]]; then
+            if handle_key "Escape"; then
+                continue
+            fi
             if ! nav_pop; then
                 exit 0
             fi
-        elif [[ ${#seq1} -eq 1 ]]; then
-            meta_key=$(printf '%s' "$seq1" | tr '[:upper:]' '[:lower:]')
-            handle_key "M-$meta_key"
+        else
+            escape_seq="$seq1"
+            while IFS= read -rsn1 -t 0.01 seq_rest; do
+                escape_seq+="$seq_rest"
+            done
+
+            if decoded_key=$(decode_escape_sequence "$escape_seq"); then
+                handle_key "$decoded_key" || true
+            fi
         fi
         continue
     fi
 
     # Backspace
     if [[ "$keypress" == $'\x7f' || "$keypress" == $'\x08' ]]; then
+        if handle_key "BSpace"; then
+            continue
+        fi
         if ! nav_pop; then
             exit 0
         fi
