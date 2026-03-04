@@ -60,7 +60,7 @@ tmux source-file ~/.tmux.conf
 Press `prefix + Space` (default) to open the which-key popup.
 
 - **Press a key** to execute the corresponding command or enter a group
-- **Escape** to go back one level or close the menu
+- **Escape** to close the menu
 - **Backspace** to go back one level or close the menu
 
 Groups are indicated by a `+` prefix and shown in cyan. Pressing a group key opens its submenu with a breadcrumb showing your navigation path.
@@ -82,9 +82,11 @@ Set these in your `~/.tmux.conf` before loading the plugin:
 | `@which-key-popup-fg` | `#4C566A` | Popup border/foreground color |
 | `@which-key-popup-x` | `C` | Popup X position (`C` = centered) |
 | `@which-key-popup-y` | `S` | Popup Y position (`S` = status line) |
+| `@which-key-breadcrumb-separator` | ` > ` | Separator string between breadcrumb levels |
 | `@which-key-color-key` | `#EBCB8B` | Menu key color |
 | `@which-key-color-group` | `#88C0D0` | Group description color |
-| `@which-key-color-desc` | `#D8DEE9` | Description and breadcrumb color |
+| `@which-key-color-desc` | `#D8DEE9` | Description color |
+| `@which-key-color-breadcrumb` | `@which-key-color-desc` | Breadcrumb color |
 | `@which-key-color-separator` | `#4C566A` | Separator, arrow, and footer hint color |
 | `@which-key-color-header` | `#81A1C1` | Header title color |
 | `@which-key-tmux-auto-target` | `on` | Auto-add client target for client-scoped tmux commands (`switch-client`, `detach-client`, `refresh-client`, `lock-client`) |
@@ -96,6 +98,7 @@ set -g @which-key-config '~/.config/tmux-which-key/config.json'
 set -g @which-key-popup-height '20'
 set -g @which-key-popup-auto-height 'on'
 set -g @which-key-popup-width '120'
+set -g @which-key-breadcrumb-separator ' → '
 set -g @plugin 'Nucc/tmux-which-key'
 ```
 
@@ -121,6 +124,7 @@ You can override in-menu colors with tmux options (format must be `#RRGGBB`):
 set -g @which-key-color-key '#F9E2AF'
 set -g @which-key-color-group '#89B4FA'
 set -g @which-key-color-desc '#CDD6F4'
+set -g @which-key-color-breadcrumb '#BAC2DE'
 set -g @which-key-color-separator '#6C7086'
 set -g @which-key-color-header '#74C7EC'
 ```
@@ -311,7 +315,7 @@ Ambiguity policy:
 
 Navigation fallback:
 
-- Plain `Escape` still closes/backs out when there is no matching `Escape` entry in the current menu.
+- Plain `Escape` always closes the menu.
 - `BSpace` still goes back when there is no matching `BSpace` entry in the current menu.
 
 ### Example Config
