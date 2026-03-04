@@ -86,6 +86,9 @@ main() {
     local popup_y
     popup_y=$(get_tmux_option "@which-key-popup-y" "S")
 
+    local breadcrumb_separator
+    breadcrumb_separator=$(get_tmux_option "@which-key-breadcrumb-separator" " > ")
+
     local color_key
     color_key=$(get_tmux_option "@which-key-color-key" "#EBCB8B")
 
@@ -95,18 +98,23 @@ main() {
     local color_desc
     color_desc=$(get_tmux_option "@which-key-color-desc" "#D8DEE9")
 
+    local color_breadcrumb
+    color_breadcrumb=$(get_tmux_option "@which-key-color-breadcrumb" "$color_desc")
+
     local color_separator
     color_separator=$(get_tmux_option "@which-key-color-separator" "#4C566A")
 
     local color_header
     color_header=$(get_tmux_option "@which-key-color-header" "#81A1C1")
 
-    local color_key_q color_group_q color_desc_q color_separator_q color_header_q
+    local color_key_q color_group_q color_desc_q color_breadcrumb_q color_separator_q color_header_q breadcrumb_separator_q
     color_key_q=$(printf '%q' "$color_key")
     color_group_q=$(printf '%q' "$color_group")
     color_desc_q=$(printf '%q' "$color_desc")
+    color_breadcrumb_q=$(printf '%q' "$color_breadcrumb")
     color_separator_q=$(printf '%q' "$color_separator")
     color_header_q=$(printf '%q' "$color_header")
+    breadcrumb_separator_q=$(printf '%q' "$breadcrumb_separator")
 
     local effective_popup_height="$popup_height"
     local popup_height_env=""
@@ -148,8 +156,10 @@ main() {
     popup_cmd+=" -e WHICH_KEY_COLOR_KEY=$color_key_q"
     popup_cmd+=" -e WHICH_KEY_COLOR_GROUP=$color_group_q"
     popup_cmd+=" -e WHICH_KEY_COLOR_DESC=$color_desc_q"
+    popup_cmd+=" -e WHICH_KEY_COLOR_BREADCRUMB=$color_breadcrumb_q"
     popup_cmd+=" -e WHICH_KEY_COLOR_SEPARATOR=$color_separator_q"
     popup_cmd+=" -e WHICH_KEY_COLOR_HEADER=$color_header_q"
+    popup_cmd+=" -e WHICH_KEY_BREADCRUMB_SEPARATOR=$breadcrumb_separator_q"
     if [[ -n "$popup_height_env" ]]; then
         local popup_height_env_q
         popup_height_env_q=$(printf '%q' "$popup_height_env")

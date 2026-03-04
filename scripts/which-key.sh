@@ -105,8 +105,10 @@ fi
 C_KEY=$(resolve_color "@which-key-color-key" "${WHICH_KEY_COLOR_KEY:-$DEFAULT_COLOR_KEY}" "$DEFAULT_COLOR_KEY")
 C_GRP=$(resolve_color "@which-key-color-group" "${WHICH_KEY_COLOR_GROUP:-$DEFAULT_COLOR_GROUP}" "$DEFAULT_COLOR_GROUP")
 C_DESC=$(resolve_color "@which-key-color-desc" "${WHICH_KEY_COLOR_DESC:-$DEFAULT_COLOR_DESC}" "$DEFAULT_COLOR_DESC")
+C_BRD=$(resolve_color "@which-key-color-breadcrumb" "${WHICH_KEY_COLOR_BREADCRUMB:-${WHICH_KEY_COLOR_DESC:-$DEFAULT_COLOR_DESC}}" "$DEFAULT_COLOR_DESC")
 C_SEP=$(resolve_color "@which-key-color-separator" "${WHICH_KEY_COLOR_SEPARATOR:-$DEFAULT_COLOR_SEPARATOR}" "$DEFAULT_COLOR_SEPARATOR")
 C_HDR=$(resolve_color "@which-key-color-header" "${WHICH_KEY_COLOR_HEADER:-$DEFAULT_COLOR_HEADER}" "$DEFAULT_COLOR_HEADER")
+BREADCRUMB_SEPARATOR="${WHICH_KEY_BREADCRUMB_SEPARATOR:- > }"
 MENU_LAST_ROW=1
 
 # Read entire config into memory once
@@ -389,13 +391,17 @@ get_breadcrumb() {
     local path=".items"
     local parts=("root")
     local n idx
+    local result
     for ((n = 0; n < NAV_DEPTH; n++)); do
         idx=${NAV_STACK[$n]}
         parts+=("$(echo "$CONFIG" | jq -r "${path}[${idx}].description")")
         path="${path}[${idx}].items"
     done
-    local IFS=" > "
-    echo "${parts[*]}"
+    result="${parts[0]}"
+    for ((n = 1; n < ${#parts[@]}; n++)); do
+        result+="${BREADCRUMB_SEPARATOR}${parts[$n]}"
+    done
+    echo "$result"
 }
 
 render_menu() {
@@ -408,7 +414,7 @@ render_menu() {
     local content_rows=0
 
     # Header
-    wk_render_header "$breadcrumb" "$C_HDR" "$C_R" "$C_SEP" "$C_DESC"
+    wk_render_header "$breadcrumb" "$C_HDR" "$C_R" "$C_SEP" "$C_BRD"
 
     # Parse all items in one jq call
     local keys=() types=() descs=()
@@ -560,12 +566,7 @@ while true; do
     if [[ "$keypress" == $'\x1b' ]]; then
         IFS= read -rsn1 -t 0.1 seq1 || true
         if [[ -z "$seq1" ]]; then
-            if handle_key "Escape"; then
-                continue
-            fi
-            if ! nav_pop; then
-                exit 0
-            fi
+            exit 0
         else
             escape_seq="$seq1"
             while IFS= read -rsn1 -t 0.01 seq_rest; do
